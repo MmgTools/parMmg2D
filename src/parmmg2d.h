@@ -436,7 +436,7 @@ int PMMG2D_parsar( int argc, char *argv[], PMMG2D_pParMesh parmesh );
 
 // Internal library
 void PMMG2D_setfunc( PMMG2D_pParMesh parmesh );
-int PMMG2D_parmmg2dlib1 ( PMMG2D_pParMesh parmesh );
+int PMMG2D_parmmg2dlib1 ( PMMG2D_pParMesh parmesh, double* velocity );
 
 // Parallel Interface
 void PMMG2D_fill_interface_nodes_list( PMMG2D_pParMesh parmesh );
@@ -449,6 +449,7 @@ int PMMG2D_interpMetrics( PMMG2D_pParMesh parmesh, double** polygon, int size );
 int PMMG2D_copyMetrics_point( MMG5_pMesh mesh, MMG5_pMesh oldMesh, MMG5_pSol met, MMG5_pSol oldMet, int npt);
 double** build_partition_contour(MMG5_pMesh mesh, int *size);
 int*** grid_size_triangles(MMG5_pMesh mesh, double minX, double minY, double maxX, double maxY, int GRID_SIZE);
+int PMMG2D_interpFields( PMMG2D_pParMesh parmesh, double* field );
 
 // Move interfaces
 int PMMG2D_frontadvancing( PMMG2D_pParMesh parmesh );
@@ -494,7 +495,7 @@ int PMMG2D_PTScotch_decomposition( PMMG2D_pParMesh parmesh );
 int PMMG2D_PTScotch_exchange( PMMG2D_pParMesh parmesh, SCOTCH_Num *partTab );
 #endif
 int PMMG2D_exchange_from_root( PMMG2D_pParMesh parmesh, int size, MMG5_pTria* pt_global, MMG5_pPoint* pp_global, 
-			       double** mm_global, int* npt_global, int* npp_global );
+            			       double** mm_global, int* npt_global, int* npp_global );
 int PMMG2D_Metis_exchange(PMMG2D_pParMesh parmesh);
 int PMMG2D_Metis_decomposition(PMMG2D_pParMesh parmesh);
 int PMMG2D_ParMetis_decomposition( PMMG2D_pParMesh parmesh );

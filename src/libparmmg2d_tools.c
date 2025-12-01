@@ -156,6 +156,31 @@ int PMMG2D_parsar( int argc, char *argv[], PMMG2D_pParMesh parmesh )
         }
         break;
 
+      case 'i':
+        if ( 0 == strncmp( argv[i], "-isotropic", 9 ) ) {
+          parmesh->mesh->info.isotropic = 1;
+        }
+        else {
+          ARGV_APPEND(parmesh, argv, mmgArgv, i, mmgArgc,
+                      " adding to mmgArgv for mmg: ",
+                      ret_val = 0; goto fail_proc );
+        }
+        break;
+
+      case 'l':
+        if ( !strcmp(argv[i],"-limit-angle") && ++i < argc ) {
+          if (!MMG2D_Set_dparameter(parmesh->mesh, parmesh->met, MMG2D_DPARAM_limit_angle, atof(argv[i])) ) {
+            ret_val = 0;
+            goto fail_proc;
+          }
+        }
+        else {
+          ARGV_APPEND(parmesh, argv, mmgArgv, i, mmgArgc,
+                      " adding to mmgArgv for mmg: ",
+                      ret_val = 0; goto fail_proc );
+        }
+        break;
+
       case 'm':
         if ( !strcmp(argv[i],"-mmg-v") ) {
 

@@ -383,14 +383,16 @@ int PMMG2D_distributeMesh_centralized_timers( PMMG2D_pParMesh parmesh, mytime *c
  * Perform the mesh remeshing from a centralized mesh
  *
  */
-int PMMG2D_parmmg2dlib_centralized(PMMG2D_pParMesh parmesh) {
+int PMMG2D_parmmg2dlib_centralized(PMMG2D_pParMesh parmesh, double* velocity) {
   int           ier;
-  int           ierlib;
+  int           ierlib = 0;
   mytime        ctim[TIMEMAX];
   int8_t        tim;
   char          stim[32];
 
- if ( parmesh->info.imprim > PMMG2D_VERB_NO ) {
+  int remeshing = parmesh->niter;
+
+  if ( parmesh->info.imprim > PMMG2D_VERB_NO ) {
     fprintf(stdout,"\n  %s\n   MODULE PARMMG2DLIB_CENTRALIZED: IMB-LJLL : "
             "%s (%s)\n  %s\n",PMMG2D_STR,PMMG2D_VERSION_RELEASE,PMMG2D_RELEASE_DATE,PMMG2D_STR);
     fprintf(stdout,"     git branch: %s\n",PMMG2D_GIT_BRANCH);
@@ -401,29 +403,41 @@ int PMMG2D_parmmg2dlib_centralized(PMMG2D_pParMesh parmesh) {
   tminit(ctim,TIMEMAX);
   chrono(ON,&(ctim[0]));
 
+  if (!remeshing && parmesh->myrank == parmesh->info.root) {
+    for (int k = 1; k <= parmesh->mesh->np; k++) parmesh->mesh->point[k].ref = k;
+  }
+
   // Distribute the mesh
   ier = PMMG2D_distributeMesh_centralized_timers( parmesh, ctim );
 
   if( ier != PMMG2D_SUCCESS ) return ier;
 
   // Remeshing
-  tim = 3;
-  chrono(ON,&(ctim[tim]));
-  if ( parmesh->info.imprim > PMMG2D_VERB_VERSION ) {
-    fprintf( stdout,"\n  -- PHASE 2 : %s MESHING\n",
-             parmesh->met->size < 3 ? "ISOTROPIC" : "ANISOTROPIC" );
+  if (remeshing) {
+    tim = 3;
+    chrono(ON,&(ctim[tim]));
+    if ( parmesh->info.imprim > PMMG2D_VERB_VERSION ) {
+      fprintf( stdout,"\n  -- PHASE 2 : %s MESHING\n",
+               parmesh->met->size < 3 ? "ISOTROPIC" : "ANISOTROPIC" );
+    }
+  
+    ier = PMMG2D_parmmg2dlib1(parmesh, velocity);
+    MPI_Allreduce( &ier, &ierlib, 1, MPI_INT, MPI_MAX, parmesh->comm );
+  
+    chrono(OFF,&(ctim[tim]));
+    printim(ctim[tim].gdif,stim);
+    if ( parmesh->info.imprim > PMMG2D_VERB_VERSION ) {
+      fprintf(stdout,"  -- PHASE 2 COMPLETED.     %s\n",stim);
+    }
+    if ( ierlib == PMMG2D_STRONGFAILURE ) {
+      return ierlib;
+    }
   }
-
-  ier = PMMG2D_parmmg2dlib1(parmesh);
-  MPI_Allreduce( &ier, &ierlib, 1, MPI_INT, MPI_MAX, parmesh->comm );
-
-  chrono(OFF,&(ctim[tim]));
-  printim(ctim[tim].gdif,stim);
-  if ( parmesh->info.imprim > PMMG2D_VERB_VERSION ) {
-    fprintf(stdout,"  -- PHASE 2 COMPLETED.     %s\n",stim);
-  }
-  if ( ierlib == PMMG2D_STRONGFAILURE ) {
-    return ierlib;
+  else {
+    // Update the list of interface nodes and return
+    PMMG2D_free_interface_nodes_list( parmesh );
+    PMMG2D_fill_interface_nodes_list( parmesh );
+    PMMG2D_CLEAN_AND_RETURN(parmesh, ier);
   }
 
   ier = PMMG2D_parmmglib_post(parmesh);
@@ -449,7 +463,7 @@ int PMMG2D_parmmg2dlib_centralized(PMMG2D_pParMesh parmesh) {
  * Perform the mesh remeshing from a distributed mesh
  *
  */
-int PMMG2D_parmmg2dlib_distributed(PMMG2D_pParMesh parmesh) {
+int PMMG2D_parmmg2dlib_distributed(PMMG2D_pParMesh parmesh, double* velocity) {
   MMG5_pMesh       mesh;
   MMG5_pSol        met;
   int              ier,iresult,ierlib;
@@ -525,7 +539,7 @@ int PMMG2D_parmmg2dlib_distributed(PMMG2D_pParMesh parmesh) {
              met->size < 3 ? "ISOTROPIC" : "ANISOTROPIC" );
   }
 
-  ier = PMMG2D_parmmg2dlib1(parmesh);
+  ier = PMMG2D_parmmg2dlib1(parmesh, velocity);
   MPI_Allreduce( &ier, &ierlib, 1, MPI_INT, MPI_MAX, parmesh->comm );
 
   chrono(OFF,&(ctim[tim]));

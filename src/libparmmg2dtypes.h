@@ -159,13 +159,6 @@
  */
 #define PMMG2D_ARG_end    10
 /**
- * \def PMMG2D_REDISTRIBUTION_graph_balancing
- *
- * Use graph redistribution to load balance the parallel mesh
- *
- */
-#define PMMG2D_REDISTRIBUTION_graph_balancing 0
-/**
  * \def PMMG2D_LOADBALANCING_metis
  *
  * Use metis to compute and balance the graph during the loadbalancing step

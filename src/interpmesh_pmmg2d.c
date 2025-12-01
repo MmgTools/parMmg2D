@@ -716,6 +716,111 @@ int PMMG2D_interpMetrics_mesh( MMG5_pMesh mesh, MMG5_pMesh oldMesh, MMG5_pMesh i
 
 /**
  * \param parmesh pointer to the parmesh structure.
+ * \param field array to interpolate
+ * \return 0 if fail, 1 if success
+ *
+ * Interpolate a field from background to current meshes
+ * and store the inteprolation in the normal
+ *
+ */
+int PMMG2D_interpFields( PMMG2D_pParMesh parmesh, double* field ) {
+  MMG5_pTria pt;
+  MMG5_pPoint ppt;
+  MMG5_pMesh mesh = parmesh->mesh;
+  MMG5_pMesh oldMesh = parmesh->old_mesh;
+
+  PMMG2D_barycoord barycoord[3];
+  int         ifoundTria;
+  int         ifoundEdge;
+  int         ifoundVertex;
+  int         ip, ie, iloc, idx, idy, i, k;
+  int         ier;
+  int***      list_triangles;
+  int         GRID_SIZE = sqrt(mesh->nt);
+  double      xmin, xmax, ymin, ymax;
+
+  find_bounding_box(oldMesh, &xmin, &xmax, &ymin, &ymax);
+  list_triangles = grid_size_triangles(oldMesh, xmin, ymin, xmax, ymax, GRID_SIZE);
+
+  ifoundTria = 1;
+
+  // Loop on new triangles, and localize their vertices in the old mesh
+  for( ie = 1; ie <= mesh->nt; ie++ ) {
+    pt = &mesh->tria[ie];
+
+    if( !MG_EOK(pt) ) continue;
+
+    for( iloc = 0; iloc < 3; iloc++ ) {
+      ip = pt->v[iloc];
+      ppt = &mesh->point[ip];
+
+      if( !MG_VOK(ppt) ) continue;
+
+      // Find the cell containing the point
+      idx = (int)((ppt->c[0] - xmin) / ((xmax - xmin)/GRID_SIZE));
+      if (idx == -1) idx = 0; // Possible if the point is on the domaine boundary
+      if (idx == GRID_SIZE) idx = GRID_SIZE-1;
+      idy = (int)((ppt->c[1] - ymin) / ((ymax - ymin)/GRID_SIZE));
+      if (idy == -1) idy = 0;
+      if (idy == GRID_SIZE) idy = GRID_SIZE-1;
+
+      // Locate point in the old mesh 
+      ier = PMMG2D_locatePoint( oldMesh, &list_triangles[idx][idy][0], ppt, barycoord,
+                                &ifoundTria, &ifoundEdge, &ifoundVertex );
+
+      // Interpolate point metrics
+      if( ifoundVertex != PMMG2D_UNSET ) {
+        ppt->n[0] = field[oldMesh->tria[ifoundTria].v[ifoundVertex]-1];
+        ppt->n[1] = field[oldMesh->np + oldMesh->tria[ifoundTria].v[ifoundVertex]-1];
+      }
+      else if( ifoundEdge != PMMG2D_UNSET ) {
+
+        int    i0,i1;
+        double phi[3];
+        PMMG2D_barycoord_get( phi, barycoord, 3 );
+
+        i0 = MMG5_inxt2[ifoundEdge];
+        i1 = MMG5_iprv2[ifoundEdge];
+
+        // Linear interpolation of the squared size
+        ppt->n[0] = phi[i0]*field[oldMesh->tria[ifoundTria].v[i0]-1] +
+                   phi[i1]*field[oldMesh->tria[ifoundTria].v[i1]-1];
+        ppt->n[1] = phi[i0]*field[oldMesh->np + oldMesh->tria[ifoundTria].v[i0]-1] +
+                   phi[i1]*field[oldMesh->np + oldMesh->tria[ifoundTria].v[i1]-1];
+      }
+      else {
+        double phi[3];
+        int i,j;
+
+        PMMG2D_barycoord_get( phi, barycoord, 3 );
+
+        // Linear interpolation of the squared size
+        ppt->n[0] = 0.;
+        ppt->n[1] = 0.;
+        for( i = 0; i < 3; i++ ) {
+          // Barycentric coordinates could be permuted
+          ppt->n[0] += phi[i]*field[oldMesh->tria[ifoundTria].v[i]-1];
+          ppt->n[1] += phi[i]*field[oldMesh->tria[ifoundTria].v[i]-1 + oldMesh->np];
+        }
+      }
+    }
+  }
+
+  // Free the pointers
+  for (i = 0; i < GRID_SIZE; i++) {
+    for (k = 0; k < GRID_SIZE; k++) {
+      free(list_triangles[i][k]);
+    }
+    free(list_triangles[i]);
+  }
+  free(list_triangles);
+
+  return 1;
+}
+
+
+/**
+ * \param parmesh pointer to the parmesh structure.
  *
  * \return 0 if fail, 1 if success
  *

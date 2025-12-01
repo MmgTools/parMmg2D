@@ -146,7 +146,7 @@ enum PMMG2D_Param {
  * >   END SUBROUTINE\n
  *
  **/
-int PMMG2D_parmmg2dlib_distributed(PMMG2D_pParMesh parmesh);
+int PMMG2D_parmmg2dlib_distributed(PMMG2D_pParMesh parmesh, double* velocity);
 
 /**
  * \param parmesh pointer toward the parmesh structure (boundary entities are
@@ -165,7 +165,7 @@ int PMMG2D_parmmg2dlib_distributed(PMMG2D_pParMesh parmesh);
  * >   END SUBROUTINE\n
  *
  **/
-int PMMG2D_parmmg2dlib_centralized(PMMG2D_pParMesh parmesh);
+int PMMG2D_parmmg2dlib_centralized(PMMG2D_pParMesh parmesh, double* velocity);
 
 /**
  * \param parmesh pointer toward the parmesh structure.
@@ -389,7 +389,7 @@ int PMMG2D_merge_parmesh_initial( PMMG2D_pParMesh parmesh );
  * >   END SUBROUTINE\n
  *
  */
-int PMMG2D_Get_ghosts(PMMG2D_pParMesh parmesh, int* ghosts);
+int PMMG2D_Get_ghosts(PMMG2D_pParMesh parmesh, int** ghosts, int* size);
 
 /* libparmmg_tools.c: Tools for the library */
 /**

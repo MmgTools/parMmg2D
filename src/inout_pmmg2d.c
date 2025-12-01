@@ -74,15 +74,15 @@ int PMMG2D_loadMesh_centralized(PMMG2D_pParMesh parmesh, const char *filename, i
     break;
 
   case ( MMG5_FMT_VtkVtp ):
-    ier = MMG2D_loadVtpMesh(parmesh->mesh,parmesh->met,data);
+    ier = MMG2D_loadVtpMesh(parmesh->mesh,parmesh->met,parmesh->disp,data);
     break;
 
   case ( MMG5_FMT_VtkVtu ):
-    ier = MMG2D_loadVtuMesh(parmesh->mesh,parmesh->met,data);
+    ier = MMG2D_loadVtuMesh(parmesh->mesh,parmesh->met,parmesh->disp,data);
     break;
 
   case ( MMG5_FMT_VtkVtk ):
-    ier = MMG2D_loadVtkMesh(parmesh->mesh,parmesh->met,data);
+    ier = MMG2D_loadVtkMesh(parmesh->mesh,parmesh->met,parmesh->disp,data);
     break;
 
   case ( MMG5_FMT_MeditASCII ): case ( MMG5_FMT_MeditBinary ):

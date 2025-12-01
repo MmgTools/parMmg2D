@@ -354,7 +354,7 @@ int PMMG2D_Set_dparameter(PMMG2D_pParMesh parmesh, int dparam,double val){
  * Store the neighbour partitions of each triangle to identify ghost elements
  *
  */
-int PMMG2D_Get_ghosts(PMMG2D_pParMesh parmesh, int* ghosts)
+int PMMG2D_Get_ghosts(PMMG2D_pParMesh parmesh, int** ghosts, int* size)
 {
   MMG5_pMesh mesh;
   MMG5_pTria pt, pt_neigh;
@@ -362,66 +362,52 @@ int PMMG2D_Get_ghosts(PMMG2D_pParMesh parmesh, int* ghosts)
 
   mesh = parmesh->mesh;
 
-  // ghosts is supposed to be of size 2*mesh->nt
-  for (int i = 0; i < 2*mesh->nt; i++) ghosts[i] = -1;
-
   // Store the interface nodes
   // Greatest reference number
   int max_ref = 0;
   for (int i = 1; i <= mesh->np; i++) {
     if (mesh->point[i].ref > max_ref) max_ref = mesh->point[i].ref;
   }
-  int max_ref_global;
-  MPI_Allreduce( &max_ref, &max_ref_global, 1, MPI_INT, MPI_MAX, parmesh->comm );
 
-  int* interface_nodes = (int*) malloc((max_ref_global+1) * sizeof(int));
-  for (int k = 0; k < parmesh->nip; k++) {
+  int* interface_nodes = (int*) malloc((max_ref+1) * sizeof(int));
+  for (int k = 0; k <= max_ref; k++) interface_nodes[k] = -1;
+  for (int k = 0; k < parmesh->nip; k++)
     interface_nodes[mesh->point[(&parmesh->list_interface_nodes[k])->index[0]].ref] = k;
-  }
 
   for (int k = 1; k <= mesh->nt; k++) {
     pt = &mesh->tria[k];
 
     if ( !MG_EOK(pt) )  continue;
 
-    int n = 0;
+    size[k-1] = 0;
 
     for (int i = 0; i < 3; i++) {
 
-      // If the edge is not on an parallel interface
-      if (!(pt->tag[i] & MG_PARBDY)) continue;
+      int k1 = interface_nodes[mesh->point[pt->v[i]].ref];
 
-      // Processors containing the first point
-      int k1 = interface_nodes[mesh->point[pt->v[MMG5_inxt2[i]]].ref];
-      int list_proc1[(&parmesh->list_interface_nodes[k1])->nb-1];
+      if (k1 == -1) continue;
+
       for (int j = 1; j < (&parmesh->list_interface_nodes[k1])->nb; j++) {
-        list_proc1[j-1] = (&parmesh->list_interface_nodes[k1])->proc[j];
-      }
 
-      // Processors containing the second point
-      int k2 = interface_nodes[mesh->point[pt->v[MMG5_iprv2[i]]].ref];
-      int list_proc2[(&parmesh->list_interface_nodes[k2])->nb-1];
-      for (int j = 1; j < (&parmesh->list_interface_nodes[k2])->nb; j++) {
-        list_proc2[j-1] = (&parmesh->list_interface_nodes[k2])->proc[j];
-      }
+        int should_add = 1;
 
-      // Find the common processor of both points
-      int should_break = 0;
-      int neighbour_proc = -1;
-      for (int j = 0; j < (&parmesh->list_interface_nodes[k1])->nb-1; j++) {
-        for (int l = 0; l < (&parmesh->list_interface_nodes[k2])->nb-1; l++) {
-          if (list_proc1[j] == list_proc2[l]) {
-            neighbour_proc = list_proc1[j];
-            should_break = 1;
+        for (int l = 0; l < size[k-1]; l++) {
+          if ((&parmesh->list_interface_nodes[k1])->proc[j] == ghosts[k-1][l]) {
+            should_add = 0;
             break;
           }
         }
-        if (should_break) break;
+
+        if (should_add) {
+          size[k-1]++;
+          ghosts[k-1] = realloc(ghosts[k-1], size[k-1] * sizeof(int));
+          ghosts[k-1][size[k-1]-1] = (&parmesh->list_interface_nodes[k1])->proc[j];
+        }
+
       }
 
-      ghosts[2*(k-1)+n++] = neighbour_proc;
-
     }
+
   }
 
   free(interface_nodes);

@@ -296,7 +296,7 @@ int PMMG2D_copy_mesh_met( PMMG2D_pParMesh parmesh )
  *         PMMG2D_LOWFAILURE    if  we can save the mesh
  *         PMMG2D_SUCCESS
  */
-int PMMG2D_parmmg2dlib1( PMMG2D_pParMesh parmesh )
+int PMMG2D_parmmg2dlib1( PMMG2D_pParMesh parmesh, double* velocity )
 {
   MMG5_pMesh mesh;
   MMG5_pSol  met;
@@ -331,6 +331,11 @@ int PMMG2D_parmmg2dlib1( PMMG2D_pParMesh parmesh )
   // If asked, compute the contour of the partitions and copy the initial mesh
   int size;
   double **polygon = NULL;
+  double* velocity_cpy = NULL;
+  if (velocity != NULL) {
+    velocity_cpy = (double*) malloc(2*parmesh->mesh->np*sizeof(double));
+    for ( k = 0; k < 2*parmesh->mesh->np; k++ ) velocity_cpy[k] = velocity[k];
+  }
 
   if (parmesh->info.optim_interp) {
     polygon = build_partition_contour(parmesh->mesh, &size);
@@ -342,6 +347,36 @@ int PMMG2D_parmmg2dlib1( PMMG2D_pParMesh parmesh )
 
   // Mesh adaptation loop
   for ( parmesh->iter = 0; parmesh->iter < parmesh->niter; parmesh->iter++ ) {
+
+    mesh = parmesh->mesh;
+    met  = parmesh->met;
+
+    double* scaled_velocity = NULL;
+
+    if (velocity != NULL) {
+
+      double x_min = 1.e10;
+      double x_max = -1.e10;
+      for ( k = 1; k <= mesh->np; k++) {
+        if (mesh->point[k].c[0] < x_min) x_min = mesh->point[k].c[0];
+        if (mesh->point[k].c[0] > x_max) x_max = mesh->point[k].c[0];
+      }
+
+      scaled_velocity = (double*) malloc(2*mesh->np*sizeof(double));
+
+      if (!parmesh->iter) {
+        for ( k = 0; k < 2*mesh->np; k++ ) scaled_velocity[k] = velocity[k] / (x_max-x_min);
+      }
+      else {
+        velocity_cpy = (double*) malloc(2*mesh->np*sizeof(double));
+        for ( k = 0; k < mesh->np; k++ ) {
+          velocity_cpy[k] = mesh->point[k+1].n[0];
+          velocity_cpy[k + mesh->np] = mesh->point[k+1].n[1];
+          scaled_velocity[k] = mesh->point[k+1].n[0] / (x_max-x_min);
+          scaled_velocity[k + mesh->np] = mesh->point[k+1].n[1] / (x_max-x_min);
+        }
+      }
+    }
 
     if ( parmesh->info.imprim > PMMG2D_VERB_STEPS ) {
       tim = 1;
@@ -362,9 +397,6 @@ int PMMG2D_parmmg2dlib1( PMMG2D_pParMesh parmesh )
       chrono(RESET,&(ctim[tim]));
       chrono(ON,&(ctim[tim]));
     }
-
-    mesh = parmesh->mesh;
-    met  = parmesh->met;
 
     // Make a copy of the mesh before the remeshing
     if ( !PMMG2D_copy_mesh_met ( parmesh ) ) {
@@ -396,12 +428,14 @@ int PMMG2D_parmmg2dlib1( PMMG2D_pParMesh parmesh )
     if ( !ieresult ) PMMG2D_CLEAN_AND_RETURN(parmesh,PMMG2D_STRONGFAILURE);
 
     // Remesh with MMG2D
-    if (mesh->nt) {
-      ier = MMG2D_mmg2d1n(mesh,met);
+    if (mesh->nt && velocity != NULL) {
+      ier = MMG2D_mmg2d1n(mesh,met,scaled_velocity);
     }
     else {
       ier = 1;
     }
+
+    if (velocity != NULL) free(scaled_velocity);
 
     mesh->edge = NULL;
     mesh->npi = mesh->np;
@@ -525,6 +559,12 @@ int PMMG2D_parmmg2dlib1( PMMG2D_pParMesh parmesh )
           fprintf(stderr,"\n  ## Metrics or fields interpolation problem. Try to save the mesh and exit program.\n");
         PMMG2D_CLEAN_AND_RETURN(parmesh,PMMG2D_STRONGFAILURE);
       }
+    }
+
+    // Interpolation of velocity on the new mesh if needed
+    if (velocity != NULL) {
+      ier = PMMG2D_interpFields( parmesh, velocity_cpy );
+      free(velocity_cpy);
     }
 
     // Free old mesh

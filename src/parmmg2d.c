@@ -50,6 +50,7 @@ int main(int argc,char *argv[])
   int           ier,ieresult,fmtin,fmtout;
   int8_t        tim, distributedInput;
   char          stim[32],*ptr;
+  double*       velocity = NULL;
 
   // Shared memory communicator: processes that are on the same node, sharing
   //    local memory and can potentially communicate without using the network
@@ -214,11 +215,11 @@ int main(int argc,char *argv[])
   }
   else if ( distributedInput ) {
     // Parallel remeshing starting from a distributed mesh
-    ier = PMMG2D_parmmg2dlib_distributed(parmesh);
+    ier = PMMG2D_parmmg2dlib_distributed(parmesh, velocity);
   }
   else {
     // Parallel remeshing starting from a centralized mesh
-    ier = PMMG2D_parmmg2dlib_centralized(parmesh);
+    ier = PMMG2D_parmmg2dlib_centralized(parmesh, velocity);
   }
 
   /** Check result and save output files */
