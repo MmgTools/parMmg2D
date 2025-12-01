@@ -251,7 +251,7 @@ int PMMG2D_parmmglib_post(PMMG2D_pParMesh parmesh) {
     if (parmesh->nprocs > 1) ier = PMMG2D_merge_parmesh( parmesh );
     MPI_Allreduce( &ier, &iresult, 1, MPI_INT, MPI_MIN, parmesh->comm );
 
-    if ( !iresult ) {
+    if ( !iresult && parmesh->nprocs > 1) {
       // Try to save at parallel format
       if ( parmesh->info.imprim > PMMG2D_VERB_VERSION ) {
         fprintf(stdout,"\n\n\n  -- IMPOSSIBLE TO CENTRALIZE MESHES..."
