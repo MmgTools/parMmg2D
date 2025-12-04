@@ -329,6 +329,9 @@ int PMMG2D_distributeMesh_centralized_timers( PMMG2D_pParMesh parmesh, mytime *c
 
     /* Memory repartition */
     if ( !PMMG2D_updateMeshSize( parmesh,1 ) ) ier = 3;
+
+    for (int k = 1; k <= parmesh->mesh->nt; k++) parmesh->mesh->tria[k].ref = k;
+
   } 
   else {
     ier = PMMG2D_SUCCESS;
