@@ -69,7 +69,7 @@ extern "C" {
  * Epsilon value
  *
  */
-#define PMMG2D_EPS     1e-12
+#define PMMG2D_EPS     1e-10
 
 /**
  * \def PMMG2D_NITER
