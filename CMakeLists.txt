@@ -284,7 +284,7 @@ IF ( DOWNLOAD_MMG )
   UNSET(MMG_BUILDDIR CACHE)
 
   # Use pointmap
-  OPTION ( USE_POINTMAP "Use map for point tracking" OFF )
+  OPTION ( USE_POINTMAP "Use map for point tracking" ON )
 
   EXTERNALPROJECT_ADD ( Mmg
     GIT_REPOSITORY https://github.com/MmgTools/mmg.git
